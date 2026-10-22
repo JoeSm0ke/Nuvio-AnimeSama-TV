@@ -1172,6 +1172,7 @@
     <string name="player_subtitle_delay">Délai des sous-titres</string>
     <string name="player_error_title">Erreur de lecture</string>
     <string name="player_go_back">Retour</string>
+    <string name="player_change_source_after_error">Changer de source</string>
     <string name="player_report_issue">Signaler un problème</string>
     <string name="player_report_issue_sending">Envoi du rapport de lecture…</string>
     <string name="player_report_issue_sending_button">Envoi…</string>

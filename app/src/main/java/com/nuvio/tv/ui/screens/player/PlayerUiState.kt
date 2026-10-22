@@ -312,6 +312,8 @@ sealed class PlayerEvent {
     data class OnEpisodeAddonFilterSelected(val addonName: String?) : PlayerEvent()
     data class OnEpisodeStreamSelected(val stream: Stream) : PlayerEvent()
     data object OnShowSourcesPanel : PlayerEvent()
+    /** User explicitly requests another source after a fatal Anime-Sama error. */
+    data object OnRecoverWithOtherSource : PlayerEvent()
     data object OnDismissSourcesPanel : PlayerEvent()
     data object OnReloadSourceStreams : PlayerEvent()
     data class OnSourceAddonFilterSelected(val addonName: String?) : PlayerEvent()

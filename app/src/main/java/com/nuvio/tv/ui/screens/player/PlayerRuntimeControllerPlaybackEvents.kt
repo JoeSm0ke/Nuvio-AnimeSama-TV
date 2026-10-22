@@ -1568,6 +1568,9 @@ fun PlayerRuntimeController.onEvent(event: PlayerEvent) {
         PlayerEvent.OnShowSourcesPanel -> {
             showSourcesPanel()
         }
+        PlayerEvent.OnRecoverWithOtherSource -> {
+            recoverByChoosingOtherSource()
+        }
         PlayerEvent.OnDismissSourcesPanel -> {
             dismissSourcesPanel()
         }

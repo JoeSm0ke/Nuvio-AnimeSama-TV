@@ -133,6 +133,27 @@ private fun Stream.isReadyForDebridPreparation(): Boolean =
     getStreamUrl().isNullOrBlank() &&
         (isDirectDebrid() || (needsLocalDebridResolve() && debridCacheStatus?.state == StreamDebridCacheState.CACHED))
 
+/**
+ * A deliberate user action after a failed Anime-Sama source. Refresh hoster
+ * links instead of retrying a possibly expired signed HLS URL. This never
+ * auto-selects a different audio language or clears watched progress.
+ */
+internal fun PlayerRuntimeController.recoverByChoosingOtherSource() {
+    if (_uiState.value.error == null) return
+    _uiState.update {
+        it.copy(
+            error = null,
+            showSourcesPanel = true,
+            showControls = true,
+            showAudioOverlay = false,
+            showSubtitleOverlay = false,
+            showEpisodesPanel = false,
+            showEpisodeStreams = false
+        )
+    }
+    loadSourceStreams(forceRefresh = true)
+}
+
 internal fun PlayerRuntimeController.showSourcesPanel() {
     _uiState.update {
         it.copy(

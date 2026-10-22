@@ -4,6 +4,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.nuvio.tv.core.profile.ProfileManager
+import com.nuvio.tv.core.player.AnimeSamaTransientLinkPolicy
 import kotlinx.coroutines.flow.first
 import org.json.JSONArray
 import org.json.JSONObject
@@ -54,6 +55,8 @@ class StreamLinkCacheDataStore @Inject constructor(
         contentLanguage: String? = null,
         year: String? = null
     ) {
+        // Cache only reusable links; Anime-Sama HLS host URLs can expire quickly.
+        if (AnimeSamaTransientLinkPolicy.isVolatileHttpLink(streamName, bingeGroup, url)) return
         val payload = JSONObject().apply {
             put("url", url)
             put("streamName", streamName)
@@ -85,7 +88,7 @@ class StreamLinkCacheDataStore @Inject constructor(
             val json = JSONObject(raw)
             val cachedAtMs = json.optLong("cachedAtMs", 0L)
             val age = System.currentTimeMillis() - cachedAtMs
-            if (cachedAtMs <= 0L || age > maxAgeMs) return@runCatching null
+            if (cachedAtMs <= 0L || age < 0L || age > maxAgeMs) return@runCatching null
 
             val headersJson = json.optJSONObject("headers")
             val headers = buildMap {
@@ -125,12 +128,15 @@ class StreamLinkCacheDataStore @Inject constructor(
             )
         }.getOrNull()
 
-        if (parsed == null) {
-            store().edit { mutablePrefs ->
-                mutablePrefs.remove(key)
-            }
+        // Discard old cached Anime-Sama links written by previous APKs too.
+        // They may already be expired even if our general age limit allows them.
+        val volatileLink = parsed?.let {
+            AnimeSamaTransientLinkPolicy.isVolatileHttpLink(it.streamName, it.bingeGroup, it.url)
+        } == true
+        if (parsed == null || volatileLink) {
+            store().edit { mutablePrefs -> mutablePrefs.remove(key) }
+            return null
         }
-
         return parsed
     }
 
