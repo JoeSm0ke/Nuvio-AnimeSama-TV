@@ -219,7 +219,11 @@ internal suspend fun HomeViewModel.loadAllCatalogsPipeline(
             return
         }
 
-        val catalogsToLoad = addons.flatMap { addon ->
+        // This Qilive build is an Anime-Sama-only frontend. Cinemeta stays installed
+        // for metadata/details and strict search matching, but must NEVER surface
+        // general-purpose home rows (including after reinstall/profile reset).
+        val animeHomeAddons = addons.filter { it.id == "fr.joesm0ke.animesama.catalog" }
+        val catalogsToLoad = animeHomeAddons.flatMap { addon ->
             addon.catalogs
                 .filterNot {
                     !it.shouldShowOnHome() || isCatalogDisabled(
@@ -239,7 +243,7 @@ internal suspend fun HomeViewModel.loadAllCatalogsPipeline(
             catalogKey(addonId = addon.id, type = catalog.apiType, catalogId = catalog.id)
         }.toSet()
         val heroOnlyCatalogs = if (hasHeroSelections) {
-            addons.flatMap { addon ->
+            animeHomeAddons.flatMap { addon ->
                 addon.catalogs
                     .filter { catalog ->
                         val key = catalogKey(addonId = addon.id, type = catalog.apiType, catalogId = catalog.id)
