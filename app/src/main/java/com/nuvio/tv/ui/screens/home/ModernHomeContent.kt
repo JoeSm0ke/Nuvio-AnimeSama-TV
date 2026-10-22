@@ -390,7 +390,7 @@ fun ModernHomeContent(
         itemIdentitySnapshot.byRow = currentItemIdentitiesByRow
     }
 
-    LaunchedEffect(carouselRows, focusState.hasSavedFocus) {
+    LaunchedEffect(carouselRows, focusState.hasSavedFocus, uiState.isLoading) {
         rowListStates.keys.retainAll(activeRowKeys)
         loadMoreRequestedTotals.keys.retainAll(activeRowKeys)
         val staleSelection = focusedCatalogSelection.value?.let { selection ->
@@ -439,6 +439,13 @@ fun ModernHomeContent(
                 else -> null
             }
 
+            // Rows can arrive after the first Compose frame. Do not permanently
+            // restore to the temporary first row while the saved one is loading.
+            if (HomeFocusRestorationPolicy.shouldWaitForSavedRow(
+                    savedRowKey = savedRowKey,
+                    availableRowKeys = activeRowKeys.set,
+                    catalogsLoading = uiState.isLoading
+                )) return@LaunchedEffect
             val resolvedRow = savedRowKey?.let { rowByKey.map[it] } ?: carouselRows.list.firstOrNull()
             if (resolvedRow != null) {
                 val savedItemKey = focusState.focusedItemKeyByRow[resolvedRow.key]

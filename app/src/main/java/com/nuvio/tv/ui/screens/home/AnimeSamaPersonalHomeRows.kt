@@ -17,6 +17,13 @@ internal object AnimeSamaPersonalHomeRows {
     /** Never navigate to non-resolvable synthetic IDs or non-series entries. */
     private val supportedContentId = Regex("^(tt[0-9]{5,15}|tmdb:[0-9]+)$")
 
+    fun isPersonalShelf(row: CatalogRow): Boolean =
+        row.catalogId == CATALOG_ID && row.addonId == ADDON_ID
+
+    /** Synthetic favorites have no pageable See All endpoint. */
+    fun canShowSeeAll(row: CatalogRow): Boolean =
+        !isPersonalShelf(row) && (row.hasMore || row.items.size >= 15)
+
     fun isEligibleEntry(entry: LibraryEntry): Boolean =
         entry.type.equals("series", ignoreCase = true) &&
             supportedContentId.matches(entry.id) &&
@@ -53,7 +60,7 @@ internal object AnimeSamaPersonalHomeRows {
     /** Idempotent: catalog refresh cannot duplicate the personal shelf. */
     fun prependPersonalShelf(rows: List<HomeRow>, shelf: CatalogRow?): List<HomeRow> {
         val withoutOld = rows.filterNot {
-            it is HomeRow.Catalog && it.row.catalogId == CATALOG_ID && it.row.addonId == ADDON_ID
+            it is HomeRow.Catalog && isPersonalShelf(it.row)
         }
         return if (shelf == null) withoutOld else listOf(HomeRow.Catalog(shelf)) + withoutOld
     }

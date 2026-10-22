@@ -799,9 +799,18 @@ fun ClassicHomeContent(
                             ?.let { rowFocusedItemIndex[catalogKey] = it }
                     }
                     previousRowItemKeys[catalogKey] = currentItemKeys
-                    // Match by saved row key first, fall back to index
-                    val shouldRestoreFocus = restoringFocus &&
-                        (currentFocusSnapshot.rowKey == catalogKey || index == focusState.focusedRowIndex)
+                    // A newly inserted personal row changes numeric indexes.
+                    // Use the saved stable key, falling back to index only after
+                    // missing catalogs finish loading.
+                    val shouldRestoreFocus = HomeFocusRestorationPolicy.shouldRestoreClassicRow(
+                        restoring = restoringFocus,
+                        savedRowKey = focusState.focusedRowKey,
+                        savedRowIndex = focusState.focusedRowIndex,
+                        currentRowKey = catalogKey,
+                        currentRowIndex = index,
+                        availableRowKeys = visibleRowKeys,
+                        catalogsLoading = uiState.isLoading
+                    )
                     val shouldInitialFocusFirstCatalogRow =
                         shouldRequestInitialFocus &&
                             !heroVisible &&
@@ -826,7 +835,10 @@ fun ClassicHomeContent(
                         showPosterLabels = uiState.posterLabelsEnabled,
                         showImdbRatings = uiState.homeImdbRatingsVisibility.showRatings,
                         showAddonName = uiState.catalogAddonNameEnabled,
-                        showCatalogTypeSuffix = uiState.catalogTypeSuffixEnabled,
+                        showCatalogTypeSuffix = uiState.catalogTypeSuffixEnabled &&
+                            !AnimeSamaPersonalHomeRows.isPersonalShelf(catalogRow),
+                        // A local-only favorites row has no See All destination.
+                        showSeeAll = AnimeSamaPersonalHomeRows.canShowSeeAll(catalogRow),
                         focusedPosterBackdropExpandEnabled = uiState.focusedPosterBackdropExpandEnabled,
                         focusedPosterBackdropExpandDelaySeconds = uiState.focusedPosterBackdropExpandDelaySeconds,
                         focusedPosterBackdropTrailerEnabled = uiState.focusedPosterBackdropTrailerEnabled,
@@ -869,9 +881,15 @@ fun ClassicHomeContent(
 
                 is HomeRow.CollectionRow -> {
                     val collectionKey = "collection_${homeRow.collection.id}"
-                    // Match by saved row key first, fall back to index
-                    val shouldRestoreCollectionFocus = restoringFocus &&
-                        (currentFocusSnapshot.rowKey == collectionKey || index == focusState.focusedRowIndex)
+                    val shouldRestoreCollectionFocus = HomeFocusRestorationPolicy.shouldRestoreClassicRow(
+                        restoring = restoringFocus,
+                        savedRowKey = focusState.focusedRowKey,
+                        savedRowIndex = focusState.focusedRowIndex,
+                        currentRowKey = collectionKey,
+                        currentRowIndex = index,
+                        availableRowKeys = visibleRowKeys,
+                        catalogsLoading = uiState.isLoading
+                    )
                     val collectionFocusedItemIndex = if (shouldRestoreCollectionFocus) {
                         focusState.focusedItemIndex
                     } else {

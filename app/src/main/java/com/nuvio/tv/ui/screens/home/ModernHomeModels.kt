@@ -595,7 +595,8 @@ internal fun catalogRowTitle(
     strTypeSeries: String = ""
 ): String {
     val catalogName = row.catalogName.replaceFirstChar { it.uppercase() }
-    if (!showCatalogTypeSuffix) return catalogName
+    // This is a personal list, not a browsable Stremio series catalog.
+    if (!showCatalogTypeSuffix || AnimeSamaPersonalHomeRows.isPersonalShelf(row)) return catalogName
     val typeLabel = when (row.apiType.lowercase()) {
         "movie" -> strTypeMovie.ifBlank { row.apiType.replaceFirstChar { it.uppercase() } }
         "series" -> strTypeSeries.ifBlank { row.apiType.replaceFirstChar { it.uppercase() } }

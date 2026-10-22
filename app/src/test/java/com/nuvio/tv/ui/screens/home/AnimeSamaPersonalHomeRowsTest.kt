@@ -51,6 +51,18 @@ class AnimeSamaPersonalHomeRowsTest {
         assertNull(AnimeSamaPersonalHomeRows.build(listOf(entry("invalid"))))
     }
 
+    @Test fun personalShelfHasNoFakeSeeAllAndKeepsCleanTitle() {
+        val entries = (1..18).map { entry("tt" + (1000000 + it)) }
+        val shelf = AnimeSamaPersonalHomeRows.build(entries)!!
+        assertTrue(AnimeSamaPersonalHomeRows.isPersonalShelf(shelf))
+        assertFalse(AnimeSamaPersonalHomeRows.canShowSeeAll(shelf))
+        assertEquals("Ma liste", catalogRowTitle(shelf, showCatalogTypeSuffix = true))
+        val regular = shelf.copy(catalogId = "classics", addonId = "regular-addon")
+        assertFalse(AnimeSamaPersonalHomeRows.isPersonalShelf(regular))
+        assertTrue(AnimeSamaPersonalHomeRows.canShowSeeAll(regular))
+        assertEquals("Ma liste - Series", catalogRowTitle(regular, true))
+    }
+
     @Test fun insertIsIdempotentAndRemovalKeepsCatalogs() {
         val personal = AnimeSamaPersonalHomeRows.build(listOf(entry("tt0409591")))!!
         val shelf = HomeRow.Catalog(personal)
