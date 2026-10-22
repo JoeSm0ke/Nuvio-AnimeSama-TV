@@ -74,6 +74,14 @@ class CatalogRepositoryImpl @Inject constructor(
         names
     }
 
+    override suspend fun verifiedAnimeTitles(titles: Set<String>): Set<String> {
+        if (titles.isEmpty()) return emptySet()
+        val verifiedIndex = getVerifiedAnimeNames()
+        return titles.filterTo(mutableSetOf()) { title ->
+            AnimeSamaSearchMatcher.verifiedNameMatches(title, verifiedIndex)
+        }
+    }
+
     override fun getCatalog(
         addonBaseUrl: String,
         addonId: String,

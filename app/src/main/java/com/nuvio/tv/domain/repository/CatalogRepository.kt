@@ -5,6 +5,9 @@ import com.nuvio.tv.domain.model.CatalogRow
 import kotlinx.coroutines.flow.Flow
 
 interface CatalogRepository {
+    /** Batch verification: only one catalog-index request, even while offline. */
+    suspend fun verifiedAnimeTitles(titles: Set<String>): Set<String> = emptySet()
+
     fun getCatalog(
         addonBaseUrl: String,
         addonId: String,

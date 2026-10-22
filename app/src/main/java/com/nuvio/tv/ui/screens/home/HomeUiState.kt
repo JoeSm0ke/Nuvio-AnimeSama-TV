@@ -17,6 +17,8 @@ import com.nuvio.tv.domain.model.WatchProgress
 @Immutable
 data class HomeUiState(
     val catalogRows: List<CatalogRow> = emptyList(),
+    /** Read-only snapshot of the profile's Anime-Sama favorites, if any. */
+    val personalAnimeRow: CatalogRow? = null,
     val continueWatchingItems: List<ContinueWatchingItem> = emptyList(),
     val upcomingItems: List<ContinueWatchingItem> = emptyList(),
     val isLoading: Boolean = true,

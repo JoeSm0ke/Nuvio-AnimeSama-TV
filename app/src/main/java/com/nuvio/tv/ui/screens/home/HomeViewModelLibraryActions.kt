@@ -74,6 +74,31 @@ internal fun HomeViewModel.observeLibraryState() {
                 }
             }
     }
+
+    // Anime-Sama's personal shelf is a projection of the existing library.
+    // It is scoped by profile and never writes to tracking or watched-state data.
+    if (appContext.packageName == "com.nuviodebug.com") {
+        viewModelScope.launch {
+            libraryRepository.libraryItems.distinctUntilChanged().collectLatest { saved ->
+                val series = saved.filter(AnimeSamaPersonalHomeRows::isEligibleEntry)
+                val confirmedBySource = series.filter { entry ->
+                    // A generic "anime" tracking category is not proof that the
+                    // series is available in Anime-Sama. Prefer exact provenance.
+                    entry.addonBaseUrl?.contains("Nuvio-AnimeSama-Qilive", ignoreCase = true) == true
+                }.toSet()
+                val titlesToVerify = series.asSequence()
+                    .filterNot { it in confirmedBySource }.map { it.name }.toSet()
+                val verifiedTitles = catalogRepository.verifiedAnimeTitles(titlesToVerify)
+                val personalRow = AnimeSamaPersonalHomeRows.build(
+                    series.filter { it in confirmedBySource || it.name in verifiedTitles }
+                )
+                if (_uiState.value.personalAnimeRow != personalRow) {
+                    _uiState.update { it.copy(personalAnimeRow = personalRow) }
+                    scheduleUpdateCatalogRows()
+                }
+            }
+        }
+    }
 }
 
 fun HomeViewModel.refreshPosterLibraryStatus(item: MetaPreview) {

@@ -385,7 +385,12 @@ class HomeViewModel @Inject constructor(
                     cwLastBadgeEpisodeKeys = emptySet()
                     cwLastShowIdSiblings = emptyMap()
                     _uiState.update {
-                        it.copy(layoutPreferencesReady = false, continueWatchingItems = emptyList())
+                        it.copy(
+                            layoutPreferencesReady = false,
+                            continueWatchingItems = emptyList(),
+                            personalAnimeRow = null,
+                            homeRows = AnimeSamaPersonalHomeRows.prependPersonalShelf(it.homeRows, null)
+                        )
                     }
                     clearFocusState()
                     _gridFocusState.value = HomeScreenFocusState()

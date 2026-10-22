@@ -716,8 +716,9 @@ internal suspend fun HomeViewModel.updateCatalogRowsPipeline() {
 
     heroItemOrder = baseHeroItems.map { it.id }
 
+    val personalShelfSnapshot = _uiState.value.personalAnimeRow
     val (computedHomeRows, nextGridItems) = withContext(Dispatchers.Default) {
-        val computedHomeRows = buildList {
+        val baseHomeRows = buildList<HomeRow> {
             val displayRowsByKey = displayRows.associateBy { it.legacyKey() }
             // Build a lookup of placeholder descriptors by key for lazy catalogs
             val placeholdersByKey = synchronized(catalogStateLock) {
@@ -796,6 +797,9 @@ internal suspend fun HomeViewModel.updateCatalogRowsPipeline() {
             }
         }
     }
+    val computedHomeRows = AnimeSamaPersonalHomeRows.prependPersonalShelf(
+        baseHomeRows, personalShelfSnapshot
+    )
 
     val nextGridItems = if (currentLayout == HomeLayout.GRID) {
         val posterCardWidthDp = _uiState.value.posterCardWidthDp
