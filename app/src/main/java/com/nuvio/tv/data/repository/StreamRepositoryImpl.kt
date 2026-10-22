@@ -368,12 +368,14 @@ class StreamRepositoryImpl @Inject constructor(
         if (!videoId.canRunLocalPlugins()) return null
 
         return PluginRequest(
-            id = if (videoId.startsWith("kitsu:", ignoreCase = true)) {
-                cleanKitsuPluginId(videoId)
-            } else {
-                videoId
+            id = when {
+                videoId.startsWith("kitsu:", ignoreCase = true) -> cleanKitsuPluginId(videoId)
+                // Cinemeta uses tt1234567:season:episode; the plugin must receive
+                // the bare IMDb ID and the separate season/episode parameters.
+                videoId.matches(Regex("^tt[0-9]+(:[0-9]+:[0-9]+)?$", RegexOption.IGNORE_CASE)) -> videoId.substringBefore(":")
+                else -> videoId
             },
-            mediaType = type.lowercase(),
+            mediaType = normalizeTmdbPluginType(type),
             source = videoId.substringBefore(":").uppercase()
         )
     }
@@ -430,9 +432,12 @@ class StreamRepositoryImpl @Inject constructor(
      * Stream local plugin results - each scraper sends results individually
      */
     private fun String.canRunLocalPlugins(): Boolean {
+        // The catalog is IMDb based. TMDB conversion is not always available
+        // (e.g. Naruto), but our plugin can resolve IMDb via TMDB /find itself.
         return startsWith("kitsu:", ignoreCase = true) ||
             startsWith("anilist:", ignoreCase = true) ||
-            startsWith("mal:", ignoreCase = true)
+            startsWith("mal:", ignoreCase = true) ||
+            matches(Regex("^tt[0-9]+(:[0-9]+:[0-9]+)?$", RegexOption.IGNORE_CASE))
     }
 
     private suspend fun streamLocalPlugins(
