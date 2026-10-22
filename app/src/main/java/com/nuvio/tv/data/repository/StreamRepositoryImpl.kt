@@ -519,6 +519,7 @@ class StreamRepositoryImpl @Inject constructor(
             }
         }.takeIf { it.isNotBlank() }
         val displayTitle = (baseTitle ?: baseName ?: scraper.name).takeIf { it.isNotBlank() }
+        val languageBingeGroup = AnimeSamaLanguageContinuity.bingeGroup(scraper.id, this)
 
         return Stream(
             name = displayName,
@@ -527,14 +528,14 @@ class StreamRepositoryImpl @Inject constructor(
             addonName = addonName,
             addonLogo = null,
             description = buildDescription(this),
-            behaviorHints = headers?.let { headers ->
+            behaviorHints = if (headers != null || languageBingeGroup != null) {
                 StreamBehaviorHints(
                     notWebReady = null,
-                    bingeGroup = null,
+                    bingeGroup = languageBingeGroup,
                     countryWhitelist = null,
-                    proxyHeaders = ProxyHeaders(request = headers, response = null)
+                    proxyHeaders = headers?.let { ProxyHeaders(request = it, response = null) }
                 )
-            },
+            } else null,
             infoHash = infoHash,
             fileIdx = null,
             ytId = null,

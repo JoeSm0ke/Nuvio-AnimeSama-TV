@@ -80,6 +80,7 @@ internal fun HomeViewModel.observeLibraryState() {
     if (appContext.packageName == "com.nuviodebug.com") {
         viewModelScope.launch {
             libraryRepository.libraryItems.distinctUntilChanged().collectLatest { saved ->
+                val requestedProfileId = profileManager.activeProfileId.value
                 val series = saved.filter(AnimeSamaPersonalHomeRows::isEligibleEntry)
                 val confirmedBySource = series.filter { entry ->
                     // A generic "anime" tracking category is not proof that the
@@ -89,6 +90,9 @@ internal fun HomeViewModel.observeLibraryState() {
                 val titlesToVerify = series.asSequence()
                     .filterNot { it in confirmedBySource }.map { it.name }.toSet()
                 val verifiedTitles = catalogRepository.verifiedAnimeTitles(titlesToVerify)
+                // A profile switch may occur while the shared title index is loading.
+                // Never publish the previous profile's list after that suspension.
+                if (profileManager.activeProfileId.value != requestedProfileId) return@collectLatest
                 val personalRow = AnimeSamaPersonalHomeRows.build(
                     series.filter { it in confirmedBySource || it.name in verifiedTitles }
                 )
