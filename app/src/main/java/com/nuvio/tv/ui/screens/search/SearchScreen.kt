@@ -1184,6 +1184,19 @@ private fun SearchInputField(
     var isDiscoverButtonFocused by remember { mutableStateOf(false) }
     var isVoiceButtonFocused by remember { mutableStateOf(false) }
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    var showTvKeyboard by rememberSaveable { mutableStateOf(false) }
+
+    if (showTvKeyboard) {
+        TvSearchKeyboard(
+            value = query,
+            onValueChange = onQueryChanged,
+            onSearch = { showTvKeyboard = false; onSubmit() },
+            onDismiss = {
+                showTvKeyboard = false
+                runCatching { searchFocusRequester.requestFocus() }
+            }
+        )
+    }
 
     Row(
         modifier = modifier
@@ -1318,6 +1331,7 @@ private fun SearchInputField(
         OutlinedTextField(
             value = query,
             onValueChange = onQueryChanged,
+            readOnly = true, // D-pad dialog instead of unreliable Android Remote IME
             modifier = Modifier
                 .weight(1f)
                 .focusRequester(searchFocusRequester)
@@ -1329,10 +1343,12 @@ private fun SearchInputField(
                 }
                 .onPreviewKeyEvent { keyEvent ->
                     when (keyEvent.nativeKeyEvent.keyCode) {
+                        KeyEvent.KEYCODE_DPAD_CENTER,
                         KeyEvent.KEYCODE_ENTER,
                         KeyEvent.KEYCODE_NUMPAD_ENTER -> {
                             if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
-                                onSubmit()
+                                keyboardController?.hide()
+                                showTvKeyboard = true
                             }
                             return@onPreviewKeyEvent true
                         }
