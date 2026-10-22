@@ -8,6 +8,7 @@ import com.nuvio.tv.core.network.NetworkResult
 import com.nuvio.tv.data.local.DiscoverSelectionDataStore
 import com.nuvio.tv.data.local.LayoutPreferenceDataStore
 import com.nuvio.tv.data.local.SearchHistoryDataStore
+import com.nuvio.tv.data.repository.AnimeSamaSearchMatcher
 import com.nuvio.tv.domain.model.Addon
 import com.nuvio.tv.domain.model.CatalogDescriptor
 import com.nuvio.tv.domain.model.CatalogRow
@@ -109,8 +110,6 @@ class SearchViewModel @Inject constructor(
         const val LIVE_SEARCH_DEBOUNCE_MS = 350L
 
         const val MAX_SUGGESTIONS = 8
-        /** Splits titles and queries into words. */
-        private val WORD_SEPARATOR = Regex("[^\\p{L}\\p{N}]+")
         const val MAX_RECENT_SEARCHES = 8
     }
 
@@ -296,25 +295,9 @@ class SearchViewModel @Inject constructor(
         fetchSuggestions(trimmed)
     }
 
-    /** Match rank for [title], lower being better, or null when it does not match [queryLower]. */
-    private fun suggestionRank(title: String, queryLower: String): Int? {
-        val titleLower = title.lowercase()
-        if (titleLower == queryLower) return 0
-        if (titleLower.startsWith(queryLower)) return 1
-        if (titleLower.contains(queryLower)) return 2
-
-        // Allow multi-word matches such as "wolf wall" -> "The Wolf of Wall Street".
-        // Each query word must consume a different title word.
-        val queryWords = queryLower.split(WORD_SEPARATOR).filter { it.isNotEmpty() }
-        if (queryWords.size < 2) return null
-        val unmatchedTitleWords = titleLower.split(WORD_SEPARATOR).filterTo(mutableListOf()) { it.isNotEmpty() }
-        val everyWordMatches = queryWords.all { word ->
-            val index = unmatchedTitleWords.indexOfFirst { it.startsWith(word) }
-            if (index >= 0) unmatchedTitleWords.removeAt(index)
-            index >= 0
-        }
-        return if (everyWordMatches) 3 else null
-    }
+    /** Use the same punctuation/alias matching for keyboard suggestions and results. */
+    private fun suggestionRank(title: String, queryLower: String): Int? =
+        AnimeSamaSearchMatcher.rank(title, queryLower)
 
     /** The strip contents for [names], best match first, capped at [MAX_SUGGESTIONS]. */
     private fun rankedSuggestions(names: Collection<String>, queryLower: String): List<String> =

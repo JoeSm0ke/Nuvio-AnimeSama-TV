@@ -5,6 +5,7 @@ import android.util.Log
 import com.nuvio.tv.core.network.NetworkResult
 import com.nuvio.tv.core.network.safeApiCall
 import com.nuvio.tv.data.mapper.toDomainOrNull
+import com.nuvio.tv.data.remote.dto.CatalogResponseDto
 import com.nuvio.tv.data.remote.api.AddonApi
 import com.nuvio.tv.domain.model.CatalogRow
 import com.nuvio.tv.domain.model.ContentType
@@ -27,17 +28,45 @@ class CatalogRepositoryImpl @Inject constructor(
         private const val TAG = "CatalogRepository"
         private const val ANIME_TITLES_INDEX =
             "https://joesm0ke.github.io/Nuvio-AnimeSama-Qilive/catalog/series/as_names.json"
+        private const val ANIME_SEARCH_CACHE_MS = 20L * 60 * 1000
     }
 
     private val animeIndexMutex = Mutex()
     @Volatile private var knownAnimeNames: Set<String>? = null
+    private val animeSearchMutex = Mutex()
+    @Volatile private var cachedAnimeSearch: CatalogResponseDto? = null
+    @Volatile private var cachedAnimeSearchAtMs = 0L
+
+    /** Cache the static JSON index once per session window, not once per keystroke. */
+    private suspend fun getAnimeSearchSnapshot(url: String): NetworkResult<CatalogResponseDto> =
+        animeSearchMutex.withLock {
+            val cached = cachedAnimeSearch
+            val now = System.currentTimeMillis()
+            if (cached != null && now - cachedAnimeSearchAtMs < ANIME_SEARCH_CACHE_MS) {
+                return@withLock NetworkResult.Success(cached)
+            }
+            val fetched = safeApiCall(context) { api.getCatalog(url) }
+            if (fetched is NetworkResult.Success) {
+                cachedAnimeSearch = fetched.data
+                cachedAnimeSearchAtMs = now
+                return@withLock fetched
+            }
+            // Keep the last known index while offline; a failed refresh must not
+            // erase search suggestions or results during an interrupted connection.
+            if (cached != null) NetworkResult.Success(cached) else fetched
+        }
 
     private suspend fun getVerifiedAnimeNames(): Set<String> = animeIndexMutex.withLock {
         knownAnimeNames?.let { return@withLock it }
         val result = safeApiCall(context) { api.getCatalog(ANIME_TITLES_INDEX) }
         val names = if (result is NetworkResult.Success) {
             result.data.metas.mapNotNull { it?.name?.takeIf(String::isNotBlank) }
-                .map(::normalizeAnimeQuery).toSet()
+                .flatMap { title ->
+                    val normalized = AnimeSamaSearchMatcher.normalize(title)
+                    if (normalized.length >= 5) {
+                        listOf(normalized, normalized.replace(" ", ""))
+                    } else listOf(normalized)
+                }.toSet()
         } else emptySet()
         // Cache only successful responses; a temporary network failure may be retried.
         if (names.isNotEmpty()) knownAnimeNames = names
@@ -73,7 +102,12 @@ class CatalogRepositoryImpl @Inject constructor(
             "Fetching catalog addonId=$addonId addonName=$addonName type=$type catalogId=$catalogId skip=$skip skipStep=$skipStep supportsSkip=$supportsSkip url=$url"
         )
 
-        when (val result = safeApiCall(context) { api.getCatalog(url) }) {
+        val catalogResult = if (isAnimeSamaSearch) {
+            getAnimeSearchSnapshot(url)
+        } else {
+            safeApiCall(context) { api.getCatalog(url) }
+        }
+        when (val result = catalogResult) {
             is NetworkResult.Success -> {
                 val rawItemCount = result.data.metas.size
                 val mappedItems = result.data.metas
@@ -83,15 +117,17 @@ class CatalogRepositoryImpl @Inject constructor(
                     extraArgs.containsKey("search")
                 val items = when {
                     isAnimeSamaSearch -> {
-                        val normalizedQuery = normalizeAnimeQuery(extraArgs["search"].orEmpty())
-                        mappedItems.filter { normalizeAnimeQuery(it.name).contains(normalizedQuery) }
-                            .take(60)
+                        val query = extraArgs["search"].orEmpty()
+                        mappedItems.mapNotNull { item ->
+                            AnimeSamaSearchMatcher.rank(item.name, query)?.let { rank -> item to rank }
+                        }.sortedWith(compareBy({ it.second }, { it.first.name.lowercase(java.util.Locale.ROOT) }))
+                            .take(60).map { it.first }
                     }
                     isCinemetaSearch -> {
                         // Cinemeta is only a metadata resolver here; hide everything not
                         // explicitly listed in the Anime-Sama site catalogue.
                         val verifiedNames = getVerifiedAnimeNames()
-                        mappedItems.filter { normalizeAnimeQuery(it.name) in verifiedNames }
+                        mappedItems.filter { AnimeSamaSearchMatcher.verifiedNameMatches(it.name, verifiedNames) }
                     }
                     else -> mappedItems
                 }
@@ -166,13 +202,6 @@ class CatalogRepositoryImpl @Inject constructor(
         }
 
         return catalogPath + baseQuery
-    }
-
-    private fun normalizeAnimeQuery(value: String): String {
-        val ascii = java.text.Normalizer.normalize(value, java.text.Normalizer.Form.NFD)
-            .replace(Regex("\\p{M}+"), "")
-        return ascii.lowercase(java.util.Locale.ROOT)
-            .replace(Regex("[^a-z0-9]+"), " ").trim()
     }
 
     private fun encodeArg(value: String): String {
