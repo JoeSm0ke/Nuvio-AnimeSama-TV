@@ -63,6 +63,18 @@ class AnimeSamaPersonalHomeRowsTest {
         assertEquals("Ma liste - Series", catalogRowTitle(regular, true))
     }
 
+    @Test fun gridShowsEveryPersonalPosterWithoutBrokenSeeAll() {
+        val shelf = AnimeSamaPersonalHomeRows.build((1..18).map {
+            entry("tt" + (1000000 + it))
+        })!!
+        assertFalse(AnimeSamaPersonalHomeRows.gridShowSeeAll(shelf, 16))
+        assertEquals(18, AnimeSamaPersonalHomeRows.gridVisibleItemLimit(shelf, 16))
+        val realCatalog = shelf.copy(catalogId = "classics", addonId = "provider")
+        assertTrue(AnimeSamaPersonalHomeRows.gridShowSeeAll(realCatalog, 16))
+        assertEquals(15, AnimeSamaPersonalHomeRows.gridVisibleItemLimit(realCatalog, 16))
+        assertEquals(16, AnimeSamaPersonalHomeRows.gridVisibleItemLimit(realCatalog.copy(hasMore = false, items = realCatalog.items.take(12)), 16))
+    }
+
     @Test fun insertIsIdempotentAndRemovalKeepsCatalogs() {
         val personal = AnimeSamaPersonalHomeRows.build(listOf(entry("tt0409591")))!!
         val shelf = HomeRow.Catalog(personal)

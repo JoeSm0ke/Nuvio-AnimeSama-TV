@@ -24,6 +24,15 @@ internal object AnimeSamaPersonalHomeRows {
     fun canShowSeeAll(row: CatalogRow): Boolean =
         !isPersonalShelf(row) && (row.hasMore || row.items.size >= 15)
 
+    fun gridShowSeeAll(row: CatalogRow, maxSlots: Int): Boolean =
+        !isPersonalShelf(row) && (row.hasMore || row.items.size > maxSlots)
+
+    fun gridVisibleItemLimit(row: CatalogRow, maxSlots: Int): Int = when {
+        isPersonalShelf(row) -> row.items.size
+        gridShowSeeAll(row, maxSlots) -> (maxSlots - 1).coerceAtLeast(0)
+        else -> maxSlots.coerceAtLeast(0)
+    }
+
     fun isEligibleEntry(entry: LibraryEntry): Boolean =
         entry.type.equals("series", ignoreCase = true) &&
             supportedContentId.matches(entry.id) &&

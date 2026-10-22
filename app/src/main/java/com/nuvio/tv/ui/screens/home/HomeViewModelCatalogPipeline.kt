@@ -829,9 +829,13 @@ internal suspend fun HomeViewModel.updateCatalogRowsPipeline() {
                             ))
                             // Show "See All" if there are more items than fit in the
                             // displayed rows, or the API indicates more pages exist.
-                            val showSeeAll = row.hasMore || row.items.size > maxDisplaySlots
-                            val rawMax = if (showSeeAll) maxDisplaySlots - 1 else maxDisplaySlots
-                            val displayItems = row.items.take(rawMax)
+                            // Personal favorites are local-only: no catalog API
+                            // exists for a "See All" destination. Render the
+                            // full (bounded, 18-item) shelf without a dead tile.
+                            val showSeeAll = AnimeSamaPersonalHomeRows.gridShowSeeAll(row, maxDisplaySlots)
+                            val displayItems = row.items.take(
+                                AnimeSamaPersonalHomeRows.gridVisibleItemLimit(row, maxDisplaySlots)
+                            )
                             displayItems.forEach { item ->
                                 add(GridItem.Content(
                                     item = item,
