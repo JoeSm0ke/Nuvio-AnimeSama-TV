@@ -132,6 +132,17 @@ class StreamRepositoryImpl @Inject constructor(
     private suspend fun captureSourceConfiguration(): StreamSourceConfigurationSnapshot {
         while (true) {
             val profileId = profileManager.activeProfileId.value
+            // Only the separately installed Anime-Sama debug fork self-provisions its
+            // provider on a genuinely fresh profile. Never touch the original Nuvio.
+            if (context.packageName == "com.nuviodebug.com" && pluginManager.pluginsEnabled.first()) {
+                try {
+                    pluginManager.ensureAnimeSamaRepositoryForFork()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w(TAG, "Anime-Sama first-use provider setup unavailable: ${e.message}")
+                }
+            }
             val addons = addonRepository.getInstalledAddons().first().enabledAddons()
             val pluginsEnabled = pluginManager.pluginsEnabled.first()
             val enabledScrapers = if (pluginsEnabled) pluginManager.enabledScrapers.first() else emptyList()

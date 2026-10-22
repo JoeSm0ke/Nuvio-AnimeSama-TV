@@ -54,6 +54,9 @@ class PluginDataStore @Inject constructor(
     private val pluginsEnabledKey = booleanPreferencesKey("plugins_enabled")
     private val groupStreamsByRepositoryKey = booleanPreferencesKey("group_streams_by_repository")
     private val scraperSettingsKey = stringPreferencesKey("scraper_settings")
+    // Persisted independently from repositories: intentional manual removal must not
+    // trigger an automatic reinstall on the next playback request.
+    private val animeSamaBootstrapDoneKey = booleanPreferencesKey("anime_sama_bootstrap_done")
 
     private val repoListType = Types.newParameterizedType(List::class.java, PluginRepository::class.java)
     private val scraperListType = Types.newParameterizedType(List::class.java, ScraperInfo::class.java)
@@ -86,6 +89,14 @@ class PluginDataStore @Inject constructor(
                 }
             } ?: emptyList()
         }
+    }
+
+    val animeSamaBootstrapDone: Flow<Boolean> = effectiveProfileIdFlow.flatMapLatest { pid ->
+        factory.get(pid, FEATURE).data.map { prefs -> prefs[animeSamaBootstrapDoneKey] ?: false }
+    }
+
+    suspend fun markAnimeSamaBootstrapDone() {
+        store().edit { prefs -> prefs[animeSamaBootstrapDoneKey] = true }
     }
 
     suspend fun saveRepositories(repos: List<PluginRepository>) {

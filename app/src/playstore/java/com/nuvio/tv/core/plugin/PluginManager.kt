@@ -21,6 +21,9 @@ class PluginManager {
 
     fun flushPendingSync() = Unit
 
+    // No-op: the Play Store build deliberately has no local plugin runtime.
+    suspend fun ensureAnimeSamaRepositoryForFork() = Unit
+
     suspend fun addRepository(manifestUrl: String): Result<PluginRepository> =
         Result.failure(UnsupportedOperationException("Plugins are not available in this build."))
 

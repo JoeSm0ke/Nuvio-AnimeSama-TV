@@ -58,6 +58,8 @@ private const val MAX_RESPONSE_SIZE = 5 * 1024 * 1024L
 // cancelling the runner's coroutine before it can return accumulated links.
 private const val SCRAPER_TIMEOUT_MS = 120_000L
 private const val MANIFEST_SUFFIX = "/manifest.json"
+private const val ANIME_SAMA_DEFAULT_MANIFEST =
+    "https://raw.githubusercontent.com/JoeSm0ke/Nuvio-AnimeSama-Qilive/main/manifest.json"
 
 @Singleton
 class PluginManager @Inject constructor(
@@ -245,6 +247,8 @@ class PluginManager @Inject constructor(
 
     /** Prevents concurrent reconciliation from StartupSyncService and AccountViewModel */
     private val reconcileMutex = Mutex()
+    private val animeSamaBootstrapMutex = Mutex()
+    private var lastAnimeSamaBootstrapAttemptMs = 0L
 
     @Volatile
     private var pendingPushAfterSync = false
@@ -279,6 +283,46 @@ class PluginManager @Inject constructor(
             kotlinx.coroutines.delay(500)
             val result = pluginSyncService.pushToRemote()
             Log.d(TAG, "triggerRemoteSync: push result=${result.isSuccess} ${result.exceptionOrNull()?.message ?: ""}")
+        }
+    }
+
+    /**
+     * First-use recovery for our dedicated Anime-Sama debug fork only.
+     * The caller checks the application id. Never modify a configured plugin
+     * list, nor reinstall a repository deliberately removed after first setup.
+     */
+    suspend fun ensureAnimeSamaRepositoryForFork() {
+        if (dataStore.animeSamaBootstrapDone.first()) return
+        animeSamaBootstrapMutex.withLock {
+            if (dataStore.animeSamaBootstrapDone.first()) return@withLock
+            val existingRepos = dataStore.repositories.first()
+            val existingScrapers = dataStore.scrapers.first()
+            val existingAnimeSama = existingRepos.firstOrNull {
+                it.url.trimEnd('/').equals(ANIME_SAMA_DEFAULT_MANIFEST, ignoreCase = true)
+            }
+
+            if (existingScrapers.isNotEmpty() ||
+                (existingRepos.isNotEmpty() && existingAnimeSama == null)) {
+                dataStore.markAnimeSamaBootstrapDone()
+                return@withLock
+            }
+
+            val now = System.currentTimeMillis()
+            if (now - lastAnimeSamaBootstrapAttemptMs < 60_000L) return@withLock
+            lastAnimeSamaBootstrapAttemptMs = now
+
+            val succeeded = if (existingAnimeSama != null) {
+                refreshRepository(existingAnimeSama.id).isSuccess
+            } else {
+                addRepository(ANIME_SAMA_DEFAULT_MANIFEST).isSuccess
+            }
+
+            if (succeeded && dataStore.scrapers.first().isNotEmpty()) {
+                dataStore.markAnimeSamaBootstrapDone()
+                Log.i(TAG, "Anime-Sama default provider initialized for dedicated fork")
+            } else {
+                Log.w(TAG, "Anime-Sama provider not ready; first-use setup can retry later")
+            }
         }
     }
 
