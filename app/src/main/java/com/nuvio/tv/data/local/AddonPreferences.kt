@@ -240,6 +240,7 @@ class AddonPreferences @Inject constructor(
 
     private fun getDefaultAddons(): Set<String> = setOf(
         "https://v3-cinemeta.strem.io",
+        "https://joesm0ke.github.io/Nuvio-AnimeSama-Qilive",
         "https://opensubtitles-v3.strem.io"
     )
 }

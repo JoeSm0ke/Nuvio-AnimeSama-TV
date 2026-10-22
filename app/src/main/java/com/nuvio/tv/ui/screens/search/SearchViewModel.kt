@@ -1143,7 +1143,17 @@ class SearchViewModel @Inject constructor(
                 .map { catalog -> addon to catalog }
         }
 
-        return allSearchTargets
+        // Anime-Sama TV: restrict search to the verified local anime index.
+        // Keep Cinemeta installed for metadata/episodes, but never surface its film catalog here.
+        val animeSamaTargets = allSearchTargets.filter { (addon, catalog) ->
+            addon.id == "fr.joesm0ke.animesama.catalog" && catalog.id == "as_search"
+        }
+        val verifiedCinemetaTargets = allSearchTargets.filter { (addon, _) ->
+            addon.id == "com.linvo.cinemeta"
+        }
+        return if (animeSamaTargets.isNotEmpty()) {
+            animeSamaTargets + verifiedCinemetaTargets
+        } else allSearchTargets
     }
 
     /**
