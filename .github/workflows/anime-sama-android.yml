@@ -1,9 +1,8 @@
 name: Anime-Sama TV - APK de test
 
+# Manual diagnostic build only: every CI run uses a different disposable
+# signature and MUST NOT be used to update the locally signed TV application.
 on:
-  push:
-    branches:
-      - anime-sama-tv
   workflow_dispatch:
 
 permissions:
