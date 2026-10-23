@@ -15,6 +15,7 @@ import com.nuvio.tv.core.network.NetworkResult
 import com.nuvio.tv.core.torrent.TorrentSettings
 import com.nuvio.tv.core.torrent.TorrentService
 import com.nuvio.tv.core.torrent.TorrentState
+import com.nuvio.tv.core.player.AnimeSamaPreferredStream
 import com.nuvio.tv.core.player.StreamAutoPlayPolicy
 import com.nuvio.tv.core.player.StreamAutoPlaySelector
 import com.nuvio.tv.core.tracking.TrackingMediaKind
@@ -137,6 +138,9 @@ class StreamScreenViewModel @Inject constructor(
     private val manualSelection: Boolean = savedStateHandle.get<String>("manualSelection")
         ?.toBooleanStrictOrNull()
         ?: false
+    private val animeSamaFork = context.packageName == "com.nuviodebug.com"
+    private val resumeFromHome = savedStateHandle.get<String>("returnToHomeOnBack")
+        ?.toBooleanStrictOrNull() == true
     private val streamCacheKey: String = "${contentType.lowercase()}|$videoId"
 
     private val _uiState = MutableStateFlow(
@@ -334,7 +338,7 @@ class StreamScreenViewModel @Inject constructor(
         playerPreference: PlayerPreference,
         streamAutoPlayMode: StreamAutoPlayMode
     ): Boolean {
-        return streamAutoPlayMode != StreamAutoPlayMode.MANUAL
+        return animeSamaFork || streamAutoPlayMode != StreamAutoPlayMode.MANUAL
     }
 
     private fun loadStreams(forceRefresh: Boolean = false) {
@@ -377,6 +381,7 @@ class StreamScreenViewModel @Inject constructor(
             }
 
             if (
+                !animeSamaFork &&
                 playerSettings.streamAutoPlayMode == StreamAutoPlayMode.REGEX_MATCH &&
                 !StreamAutoPlayPolicy.isRegexSelectionConfigured(playerSettings.streamAutoPlayRegex)
             ) {
@@ -509,6 +514,11 @@ class StreamScreenViewModel @Inject constructor(
                 val shouldAutoSelect = !autoPlayHandledForSession && !resolvedAutoPlayTarget && isAllLoaded
                 val selectedAutoPlayStream = if (!shouldAutoSelect) {
                     null
+                } else if (animeSamaFork) {
+                    AnimeSamaPreferredStream.choose(
+                        streams = allStreams,
+                        resumeFromHome = resumeFromHome
+                    )
                 } else {
                     StreamAutoPlaySelector.selectAutoPlayStream(
                         streams = allStreams,

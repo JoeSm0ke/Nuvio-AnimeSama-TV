@@ -1,6 +1,8 @@
 package com.nuvio.tv.ui.components
 
+import android.content.Context
 import androidx.lifecycle.ViewModelStore
+import com.nuvio.tv.core.plugin.PluginManager
 import com.nuvio.tv.core.build.AppFeaturePolicy
 import com.nuvio.tv.data.local.PluginDataStore
 import com.nuvio.tv.domain.model.Addon
@@ -43,7 +45,12 @@ class PlaybackAvailabilityViewModelTest {
             every { pluginDataStore.scrapers } returns scrapers
             every { pluginDataStore.pluginsEnabled } returns pluginsEnabled
             every { metaRepository.getCachedMeta(any(), any()) } returns null
-            val viewModel = PlaybackAvailabilityViewModel(addonRepository, pluginDataStore, metaRepository)
+            val context = mockk<Context>()
+            every { context.packageName } returns "com.nuvio.tv"
+            val pluginManager = mockk<PluginManager>(relaxed = true)
+            val viewModel = PlaybackAvailabilityViewModel(
+                addonRepository, pluginDataStore, metaRepository, pluginManager, context
+            )
             viewModelStore.put("availability", viewModel)
             backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
                 viewModel.availability.collect {}
